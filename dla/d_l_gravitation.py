@@ -4,10 +4,15 @@ import copy
 import time
 from math import sqrt
 import numpy
+from matplotlib.animation import FuncAnimation
+from PIL import Image
+import os
+import imageio
 
 dokola = [[0,1],[1,0],[0,-1],[-1,0]]
 pic = 0
 signum = [[1,1],[1,-1],[-1,1],[-1,-1]]
+rposun = (1,-1)
 #tvary = [[[0,0]],
 #         [[0,0],[1,0]],
 #        [[0,0],[0,1]],
@@ -23,6 +28,25 @@ tvary = [[[0,0],[1,0]],
          [[0,0],[-1,-1],[-1,0]]
 
     ]
+
+def jekolem(x,y,id):
+    """vrátí bool a objektycest, určuje jestli a kolik je v okolí buňek určitého id"""
+    l = []
+    b = False
+    for dx,dy in dokola:
+        if mat[x+dx][y+dy].id == id:
+            b = True
+            l.append(mat[x+dx][y+dy])
+    return b,l
+
+"""def uloz_pic(frames):
+    mapa = [[cell.farbe for cell in row] for row in mat]
+    frames.append(mapa)
+    
+
+def vytvor_animaci(nkroku):
+    obrazky = [imageio.imread(f"Python_my/life/life{ikrok}.png") for ikrok in range(0, nkroku)]
+    imageio.mimsave("Python_my/life/Game_of_life.gif", obrazky)"""
 
 def matrix(VYSKA, SIRKA):
     plan = [[Nic(x,y) for y in range(SIRKA)] for x in range(VYSKA)]
@@ -83,14 +107,14 @@ def propability(fromx,fromy):
 
             if 0<x<SIRKA and 0<y<VYSKA:
                 distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                citatel += mat[x][y].id*(distance**(-gama))
+                citatel += mat[x][y].value*(distance**(-gama))
                 jmenovatel += distance**(-gama)
                 
             x = fromx + d2*i[0]
             y = fromy + d1*i[1]
             if 0<x<SIRKA and 0<y<VYSKA:
                 distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                citatel += mat[x][y].id*(distance**(-gama))
+                citatel += mat[x][y].value*(distance**(-gama))
                 jmenovatel += distance**(-gama)
                 
         if d1 == d2:
@@ -100,24 +124,9 @@ def propability(fromx,fromy):
             d2 += 1
     return citatel/jmenovatel
 
-"""def propability(fromx,fromy,maxim):
-
-    citatel = 0
-    jmenovatel = 0
-    for row in mat:
-        for cell in row:
-
-
-
-            distance = sqrt(((fromx-(cell.x))**2)+((fromy-(cell.y))**2))
-            if distance == 0:
-                continue
-            citatel += cell.id*(distance**(-gama))
-
-
-            jmenovatel += distance**(-gama)
-    q = (citatel/jmenovatel)/maxim
-    return q"""
+def update(frame):
+    ax.clear()
+    ax.imshow(lmatic[frame], cmap='hot')    
 
 class POLE:
     def __init__(self, x,y):
@@ -127,6 +136,7 @@ class POLE:
 class Nic(POLE):
     def __init__(self, x, y):
         super().__init__(x, y)
+        self.value = 0
         self.id = 0
         self.farbe = 255
 
@@ -136,6 +146,34 @@ class Cesta(POLE):
         self.value = 1
         self.id = 1
         self.farbe = 0
+    
+    def zaorame(self): 
+        """vrátí bol jestli cesta je konečná a k ničemu nevede"""
+        pripoje = 0
+        for dx,dy in dokola:
+            if mat[self.x+dx][self.y+dy].id > 0:
+                pripoje+=1
+                if pripoje == 2:
+                    return False
+        else:
+            return True
+    
+    def zaorat(self):
+        slepa = True
+        x = self.x
+        y = self.y
+        while slepa:
+            cestykolem = 0 #je to jen pojistka, která by zde neměla být potřeba ale občas se program zasekne v tom whilu
+            for dx,dy in dokola:
+                if mat[x+dx][y+dy].id == 1:
+                    cestykolem +=1
+                    mat[x][y] = Nic(x,y)
+                    x +=dx
+                    y +=dy
+                    slepa = mat[x][y].zaorame()
+                    break
+            if cestykolem == 0:
+                return
 
 class Trasa:
     def __init__(self,startx,starty,kam_chci_id):
@@ -294,8 +332,23 @@ class Dum(POLE):
 
                 #time.sleep(1)
 
-    def move(self):
-        r = dis_to_nearest(self.x,self.y,1)
+    def chces_tu_stat(self, maxim):
+        
+        a = propability(self.x,self.y)/maxim
+        r = random.random()+0.25 #0.1 je jen parametr, potenciálový val, který se musí při stěhování překročit
+        
+        if r < a:
+            return True
+            
+        else:
+            return False
+
+    def vztyk(self,houses):
+        for dx,dy in self.tvar:
+            mat[self.x+dx][self.y + dy] = Nic(self.x+dx,self.y + dy)
+        houses.append(self)
+        return houses
+        
                 
 class Kostel(Dum):
     def __init__(self, x, y):
@@ -311,7 +364,7 @@ gama = 4
 a = 50
 VYSKA, SIRKA = a,a
 nusedliku = 100
-
+os.makedirs('frames_folder', exist_ok=True)
 
 
 mat = matrix(VYSKA, SIRKA)
@@ -323,9 +376,9 @@ maxim = maximum()
 houses = [Dum(random.randint(3,SIRKA-3),random.randint(3,VYSKA-3)) for i in range(nusedliku)]
 t = time.localtime()
 current_time = time.strftime("%H:%M", t)
-
 nusedliku = 0
-
+presunuti = 0
+npic = 0
 
 
 infloop = 0
@@ -367,6 +420,27 @@ while len(houses)!=0 and infloop<SIRKA*20:
         houses.remove(emg)
 
     if nusedliku % 50 == 0:
+        mapa = [[obj.farbe for obj in row] for row in mat]
+        plt.imshow(mapa, cmap="hot")
+        plt.savefig(f"frames_folder/frame_{npic}.png", format='PNG', bbox_inches='tight')
+        plt.close()  # Zavřít aktuální figuru, aby neovlivňovala další snímky
+        npic += 1
+
+    if nusedliku % 20 == 0:
+        for row in mat:
+            for cell in row:
+                if cell.id == 2:
+                    if cell.chces_tu_stat(maxim):
+                        houses = cell.vztyk(houses)
+                        b,cesty = jekolem(cell.x,cell.y,1)
+                        if b:
+                            for cesta in cesty:
+                                if cesta.zaorame():
+                                    cesta.zaorat()
+                        #změnit housovi souradnice
+                        presunuti+=1
+
+
 
 
 
@@ -376,9 +450,21 @@ tt = time.localtime()
 tcurrent_time = time.strftime("%H:%M", tt)
 print("začátek",current_time)
 print("listova hotova:",tcurrent_time)
+print("přesunuto:",presunuti)
 
-mapa = [[obj.farbe for obj in row] for row in mat]
 
-plt.imshow(mapa, cmap="hot")
+
+obrazky = [imageio.v2.imread(f"frames_folder/frame_{i}.png") for i in range(npic)]
+imageio.mimsave(f"snímky/gify/animation{nusedliku}.gif",obrazky, duration=1, repeat=5)
+
+# Smazání složky se snímky
+for file_path in os.listdir('frames_folder'):
+    os.remove(os.path.join('frames_folder', file_path))
+os.rmdir('frames_folder')
+
+
+#mapa = [[obj.farbe for obj in row] for row in mat]
+
+#plt.imshow(mapa, cmap="hot")
 #plt.savefig(f"dla{VYSKA}-{nusedliku}.png")
-plt.show()
+#plt.show()
