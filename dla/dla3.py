@@ -4,7 +4,7 @@ import copy
 import time
 
 VYSKA, SIRKA = 200,200
-ncastic = 3500
+ncastic = 70
 
 def matrix(VYSKA, SIRKA):
     plan = [[0 for _ in range(SIRKA)] for _ in range(VYSKA)]
@@ -56,5 +56,5 @@ print("listova hotova:",tcurrent_time)
 
 
 plt.imshow(mat, cmap="gnuplot")
-plt.savefig(f"dla{VYSKA}-{ncastic}.png")
+plt.savefig(f"dlasdfasdfasdfa{VYSKA}-{ncastic}.png", dpi = 600)
 plt.show()

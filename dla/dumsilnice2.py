@@ -97,7 +97,7 @@ class Trasa:
 
                             
 
-        print(hrbitov)
+    
         for i in hrbitov:
 
             self.prvky.remove(i)
@@ -223,9 +223,9 @@ class Dum(POLE):
             
 
 
-a = 300
+a = 200
 VYSKA, SIRKA = a,a
-nusedliku = 2500
+nusedliku = 100
 
 def matrix(VYSKA, SIRKA):
     plan = [[Nic(x,y) for y in range(SIRKA)] for x in range(VYSKA)]
@@ -262,7 +262,7 @@ while len(houses)!=0 and infloop<SIRKA*3:
             emigranti.append(house)
             nusedliku +=1
             infloop = 0
-            #print(len(houses))
+            print(len(houses))
             #mapa = [[obj.farbe for obj in row] for row in mat]
             #plt.imshow(mapa, cmap="hot")
             #plt.savefig(f"dla{VYSKA}-{nusedliku}.png")
@@ -294,5 +294,5 @@ print("listova hotova:",tcurrent_time)
 mapa = [[obj.farbe for obj in row] for row in mat]
 
 plt.imshow(mapa, cmap="hot")
-#plt.savefig(f"dla{VYSKA}-{nusedliku}.png")
+plt.savefig(f"dlasdfasdfasdfasdfa{VYSKA}-{nusedliku}.png", dpi = 300)
 plt.show()

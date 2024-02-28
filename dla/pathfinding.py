@@ -13,7 +13,7 @@ def dis_to_nearest(fromx,fromy,value):
     print(fromx,fromy)
     l = []
     ll = []
-    for i in range(23):
+    for i in range(58):
         print("dčka",d1,d2)
         for i in signum:
             x = fromx + d1*i[0]
@@ -39,6 +39,8 @@ def dis_to_nearest(fromx,fromy,value):
             d2 = 0
         else:
             d2 += 1
+    print(l)
+    print(ll)
     plt.scatter(l,ll)
     plt.show()
 
@@ -139,7 +141,7 @@ class Dum(POLE):
 
 
 
-VYSKA, SIRKA = 10,10
+VYSKA, SIRKA = 200,200
 nusedliku = 4
 
 def matrix(VYSKA, SIRKA):
@@ -152,7 +154,7 @@ mat = matrix(VYSKA, SIRKA)
 
 mat[SIRKA//2][VYSKA//2] = Dum(SIRKA//2,VYSKA//2)
 
-mat[6][6] = Cesta(6,6)
+#mat[6][6] = Cesta(6,6)
 
 print("distance",dis_to_nearest(0,0,1))
 

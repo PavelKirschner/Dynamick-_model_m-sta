@@ -3,50 +3,65 @@ import matplotlib.pyplot as plt
 import copy
 import time
 from math import sqrt
-import numpy
-from matplotlib.animation import FuncAnimation
-from PIL import Image
 import os
 import imageio
+from PIL import Image
+
+# urovnat kód
+#přidat speciální budovy
+# 3D model
+# udělat dic pro smatrani, abychom psali pouze poloměr
 
 dokola = [[0,1],[1,0],[0,-1],[-1,0]]
 pic = 0
 signum = [[1,1],[1,-1],[-1,1],[-1,-1]]
 rposun = (1,-1)
-#tvary = [[[0,0]],
-#         [[0,0],[1,0]],
-#        [[0,0],[0,1]],
-#         [[0,0],[1,1],[1,0]]]
-tvary = [[[0,0],[1,0]],
-         [[0,0],[0,1]],
-         [[0,0],[1,1],[1,0]],
-         [[0,0],[1,1],[1,0],[0,1]],
-         [[0,0],[1,1],[1,0],[2,0],[2,1]],
-         [[0,0],[1,0],[2,0]],
-         [[0,0],[0,1],[0,2]],
-         [[0,0],[2,0],[1,1],[1,0]],
-         [[0,0],[-1,-1],[-1,0]]
+dic_smatrani = {
+    10:58,
+    9:48,
+    8:39,
+    7:30,
+    6:23,
+    5:17,
+    4:11,
+    3:7,
+    2:4,
+    1:2
 
+}
+
+tvary = [[[0,0],[1,0]], #carky
+         [[0,0],[0,1]],
+         [[0,0],[-1,0]], 
+         [[0,0],[0,-1]],
+         [[0,0],[1,1],[1,0]],#Lka
+         [[0,0],[1,1],[0,1]],
+         [[0,0],[-1,-1],[-1,0]],
+         [[0,0],[-1,-1],[0,-1]],
+         [[0,0],[-1,1],[-1,0]],
+         [[0,0],[-1,1],[0,1]],
+         [[0,0],[1,-1],[1,0]],
+         [[0,0],[1,-1],[0,-1]],
+         [[0,0],[1,1],[1,0],[0,1]], #ctverce
+         [[0,0],[-1,-1],[-1,0],[0,-1]],
+         [[0,0],[1,-1],[1,0],[0,-1]],
+         [[0,0],[-1,1],[-1,0],[0,1]],
+         [[0,0],[2,0],[1,1],[1,0]], # tetris
+         [[0,0],[-2,0],[-1,1],[-1,0]],
+         [[0,0],[0,2],[1,1],[0,1]],
+         [[0,0],[0,-2],[1,-1],[0,-1]],
+         [[0,0],[1,1],[1,0],[2,0],[2,1]], #čtverec s hlavou
+         [[0,0],[-1,-1],[-1,0],[0,-1],[-2,-1]],
+         [[0,0],[1,-1],[1,0],[0,-1],[1,-2]],
+         [[0,0],[-1,1],[-1,0],[0,1],[-1,2]],
+         [[0,0],[1,0],[2,0]], #zizalak
+         [[0,0],[0,1],[0,2]],
+         [[0,0],[-1,0],[-2,0]],
+         [[0,0],[0,-1],[0,-2]],            
     ]
 
-def jekolem(x,y,id):
-    """vrátí bool a objektycest, určuje jestli a kolik je v okolí buňek určitého id"""
-    l = []
-    b = False
-    for dx,dy in dokola:
-        if mat[x+dx][y+dy].id == id:
-            b = True
-            l.append(mat[x+dx][y+dy])
-    return b,l
-
-"""def uloz_pic(frames):
-    mapa = [[cell.farbe for cell in row] for row in mat]
-    frames.append(mapa)
-    
-
-def vytvor_animaci(nkroku):
-    obrazky = [imageio.imread(f"Python_my/life/life{ikrok}.png") for ikrok in range(0, nkroku)]
-    imageio.mimsave("Python_my/life/Game_of_life.gif", obrazky)"""
+def distance(fromx,fromy,kamx,kamy):
+    return sqrt((fromx-kamx)**2 + (fromy - kamy)**2)
 
 def matrix(VYSKA, SIRKA):
     plan = [[Nic(x,y) for y in range(SIRKA)] for x in range(VYSKA)]
@@ -76,31 +91,40 @@ def dis_to_nearest(fromx,fromy,id):
         else:
             d2 += 1
 
-def maximum():
-    citatel = 0
-    jmenovatel = 0
-    
+def savepic(npic):
+    '''uloží aktuální figuru do frames_folder v png'''
+    mapa = [[obj.farbe for obj in row] for row in mat]
+    plt.imshow(mapa, cmap="hot")
+    plt.savefig(f"frames_folder/frame_{npic}.png", format='PNG', bbox_inches='tight', dpi = 600)
+    plt.close()  # Zavřít aktuální figuru, aby neovlivňovala další snímky
+    npic += 1
+    return npic
+
+def stehovani(): 
+    """zvedne domy z pole a přesune je do listu houses,usměrní pahýly sinlic, vrátí počet zvednutých domů"""
+    prace_pro_stehovaky = []
     for row in mat:
         for cell in row:
+            if cell.id == 2:
+                if cell.nechces_tu_stat() and cell not in prace_pro_stehovaky:
+                    prace_pro_stehovaky.append(cell)
+                
+    for house in prace_pro_stehovaky: 
+        jekolemcesta,cesty = house.jekolem(1)
+        house.vztyk()
+        if jekolemcesta:
+            for cesta in cesty:    
+                if cesta.zaorame():
+                    cesta.zaorat()
 
+    return len(prace_pro_stehovaky)
 
-
-            distance = sqrt((((SIRKA//2+1)-(cell.x))**2)+(((VYSKA//2+1)-(cell.y))**2))
-            if distance == 0:
-                continue
-            citatel += cell.id*(distance**(-gama))
-
-
-            jmenovatel += distance**(-gama)
-
-    return citatel/jmenovatel
-
-def propability(fromx,fromy):
+def propability(fromx,fromy,smatrani):
     d1 = 1
     d2 = 0
     citatel = 0
     jmenovatel = 0
-    for i in range(23):
+    for i in range(smatrani):
         for i in signum:
             x = fromx + d1*i[0]
             y = fromy + d2*i[1]
@@ -124,9 +148,36 @@ def propability(fromx,fromy):
             d2 += 1
     return citatel/jmenovatel
 
-def update(frame):
-    ax.clear()
-    ax.imshow(lmatic[frame], cmap='hot')    
+def maximum():
+    fromx = SIRKA//2
+    fromy = VYSKA//2
+    d1 = 1
+    d2 = 0
+    citatel = 0
+    jmenovatel = 0
+    for i in range(smatrani):
+        for i in signum:
+            x = fromx + d1*i[0]
+            y = fromy + d2*i[1]
+
+            if 0<x<SIRKA and 0<y<VYSKA:
+                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
+                citatel += 3*(distance**(-gama))
+                jmenovatel += distance**(-gama)
+                
+            x = fromx + d2*i[0]
+            y = fromy + d1*i[1]
+            if 0<x<SIRKA and 0<y<VYSKA:
+                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
+                citatel += 3*(distance**(-gama))
+                jmenovatel += distance**(-gama)
+                
+        if d1 == d2:
+            d1 += 1
+            d2 = 0
+        else:
+            d2 += 1
+    return citatel/jmenovatel
 
 class POLE:
     def __init__(self, x,y):
@@ -148,15 +199,15 @@ class Cesta(POLE):
         self.farbe = 0
     
     def zaorame(self): 
-        """vrátí bol jestli cesta je konečná a k ničemu nevede"""
+        """vrátí True jestli cesta je konečná a k ničemu nevede"""
+
         pripoje = 0
         for dx,dy in dokola:
             if mat[self.x+dx][self.y+dy].id > 0:
                 pripoje+=1
                 if pripoje == 2:
                     return False
-        else:
-            return True
+        return True
     
     def zaorat(self):
         slepa = True
@@ -174,6 +225,120 @@ class Cesta(POLE):
                     break
             if cestykolem == 0:
                 return
+            
+    def zaorat2(self):
+        x = self.x
+        y = self.y
+        for dx,dy in dokola:
+            if mat[x+dx][y+dy].id == 2:
+                return
+        neprozkoumane = [[x,y]]
+        cesta_prvky = []
+        potrebne = []
+        while len(neprozkoumane) != 0:
+            print("prvni while", len(neprozkoumane),x,y)
+            copy_neprozkoumane = copy.deepcopy(neprozkoumane)
+            for x,y in copy_neprozkoumane:
+                potrebna = False
+                for dx,dy in dokola:
+                    if mat[x+dx][y+dy].id == 2:
+                        neprozkoumane.remove([x,y])
+                        potrebne.append([x,y])
+                        potrebna = True
+                        break
+                if not potrebna:
+                    cesta_prvky.append([x,y])
+                    neprozkoumane.remove([x,y])
+                    for dx,dy in dokola:        
+                        if mat[x+dx][y+dy].id == 1 and [x+dx,y+dy] not in cesta_prvky and [x+dx,y+dy] not in neprozkoumane and [x+dx,y+dy] not in potrebne:
+                            neprozkoumane.append([x + dx,y +dy])
+            copy_cesta_prvky = copy.deepcopy(cesta_prvky)
+            for x,y in copy_cesta_prvky:
+                kolempotrebnych = 0
+                potr = []
+                for dx,dy in dokola:
+                    if [x+dx,y+dy] in potrebne:
+                        kolempotrebnych += 1
+                        potr.append([x+dx,y+dy])
+                if kolempotrebnych >1:
+                    cesta_prvky.remove([x,y])
+                    potrebne.append([x,y])
+                    for i in potr:
+                        potrebne.remove(i)
+
+
+        if len(potrebne) == 0: #to je blbost, proč to tu je?
+            return
+        
+        elif len(potrebne) == 1:
+            for x,y in cesta_prvky:
+                mat[x][y] = Nic(x,y)
+            return
+        
+        #elif len(potrebne) == 2:
+        #    while True:
+         #       for x,y in cesta_prvky:
+        #            kolemcest = 0
+        #            for dx,dy in dokola:
+        #                if [x+dx,y+dy] in cesta_prvky:
+        #                    kolemcest +=1
+        #            if kolemcest ==1:
+
+        #                mat[x,y] = Nic(x,y)
+
+
+        elif len(potrebne) > 2:
+            krizovatky = [1,1,1]
+            loopstop = 2*len(cesta_prvky) +5
+            while len(krizovatky) > (len(potrebne)-2) and loopstop > 0:
+                loopstop -=1
+                print("druhy while",x,y, len(krizovatky), len(potrebne)-2, krizovatky)
+                krizovatky = []
+                for x,y in cesta_prvky:
+                    kolemcest = 0
+                    for dx,dy in dokola:
+                        if mat[x+dx][y+dy].id == 1:
+                            kolemcest += 1
+                    if kolemcest >= 3:
+                        krizovatky.append([x,y])
+                if len(krizovatky)>0:    
+                    nahodna_krizovatka = random.choice(krizovatky)
+                    cesta_prvky.remove(nahodna_krizovatka)
+                    for x,y in cesta_prvky:
+                        kolemcest = 0
+                        for dx,dy in dokola:
+                            if [x+dx,y+dy] in cesta_prvky or [x+dx,y+dy] in potrebne:
+                                kolemcest += 1
+                        if kolemcest == 1:
+                            cesta_prvky.append(nahodna_krizovatka)
+                            break
+                        else:    
+                            mat[x][y] = Nic(x,y)
+                        
+                        
+                    
+            """cesty_co_zustanou = []
+            for i in range(1,len(potrebne)):
+                x,y = potrebne[i]
+                while True:
+                    moznosti = []
+                    for dx,dy in dokola:
+                        if mat[x+dx][y+dy].id == 1 and [x+dx,y+dy] in cesta_prvky:
+                            moznosti.append([x+dx][y+dy])
+                    nejvyssi = 0
+                    moznost = None
+                    for x,y in moznosti:
+                        r = (distance(x,y,potrebne[i-1].x,potrebne[i-1].y))
+                        if r > nejvyssi:
+                            moznost = [x,y]
+                            nejvyssi = r
+                        
+                    
+
+            for l in cesta_prvky:
+                if l not in cesty_co_zustanou:
+                    mat[l[0]][l[1]] = Nic(l[0],l[1])
+                           """
 
 class Trasa:
     def __init__(self,startx,starty,kam_chci_id):
@@ -205,16 +370,13 @@ class Trasa:
                     index = idx + 1
                     break
 
-
-
         for i in hrbitov:
-
             self.prvky.remove(i)
 
 class Dum(POLE):
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.value = 1
+        self.value = 4
         self.id = 2
         self.farbe = random.random()*100+100
         self.tvar = random.choice(tvary)
@@ -226,21 +388,26 @@ class Dum(POLE):
             self.lpozic.append([self.x+dx,self.y+dy])
         return self.lpozic
     
-    def muzu_sednout(self,maxim):
+    def posun_se(self):
+        """změní souřadnice domu, posun v kříži)"""
+        dx,dy = random.choice(dokola)
+        if  3< (self.x+dx) < (SIRKA-4):
+            self.x = dx+self.x
+        if 3 < (self.y+dy) < (SIRKA-4):
+            self.y = dy+self.y
+    
+    def muzu_sednout(self):
         #true pokud je na prázdných polích a je v přítomnosti objektu který není prázdné pole
         self.get_lpozic()
 
         for x,y in self.lpozic:
-            if mat[x][y].id != 0:
-  
+            if  mat[x][y].id != 0:  
                 return False
 
 
-        a = propability(self.x,self.y)/maxim
-
-
+        a = propability(self.x,self.y,smatrani)/max_propabiliti
         r = random.random()
-        #print(r)
+
         if r < a:
 
             return True
@@ -279,7 +446,7 @@ class Dum(POLE):
         for i in range(212):
             if i % 50 ==0 and i>2:
                 print("náročná cesta")
-            #print(ta_prava)
+
             x = ta_prava.prvky[-1][0]
             y = ta_prava.prvky[-1][1]
 
@@ -296,7 +463,7 @@ class Dum(POLE):
 
             for posun in dokola:
                 if 0<x+posun[0]<VYSKA and 0<y+posun[1]<SIRKA and mat[x+posun[0]][y+posun[1]].id == 1:
-                    #print("našli jsme cestu", ta_prava.prvky)
+
                     if len(ta_prava.prvky) > 3:
                         ta_prava.usmernit() 
                     for pole in ta_prava.prvky:
@@ -332,48 +499,88 @@ class Dum(POLE):
 
                 #time.sleep(1)
 
-    def chces_tu_stat(self, maxim):
+    def nechces_tu_stat(self):
         
-        a = propability(self.x,self.y)/maxim
-        r = random.random()+0.25 #0.1 je jen parametr, potenciálový val, který se musí při stěhování překročit
+        propability_of_staying = propability(self.x,self.y, smatrani)/max_propabiliti
+        r = random.random()  #0.4 je jen parametr, potenciálový val, který se musí při stěhování překročit
+        propability_of_staying += potencialovy_val
         
-        if r < a:
-            return True
+        if r < propability_of_staying:
+            return False #nezvedne se
             
         else:
-            return False
+            return True #zvedne se
 
-    def vztyk(self,houses):
-        for dx,dy in self.tvar:
-            mat[self.x+dx][self.y + dy] = Nic(self.x+dx,self.y + dy)
+    def vztyk(self):
+        """smaže dům v poli a přidá ho do houses listu a posune ho"""
+        pozice = self.get_lpozic()
+        for x,y in pozice:
+            mat[x][y] = Nic(x,y)
         houses.append(self)
-        return houses
+        self.posun_se()
+
+    def jekolem(self,id):
+        """vrátí bool a objektycest, určuje jestli a kolik je v okolí buňek určitého id"""
         
-                
+        l = []
+        b = False
+        pozice = self.get_lpozic()
+        for x,y in pozice:
+            for dx,dy in dokola:
+                if [x+dx,y+dy] in pozice:
+                    ...
+                elif mat[x+dx][y+dy].id == id:
+                    b = True
+                    l.append(mat[x+dx][y+dy])
+
+        return b,l
+
 class Kostel(Dum):
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.value = 5
+        self.value = 200
         self.id = 2
         self.farbe = 50
         self.tvar =  [[0,0],[-1,0],[-1,-1],[-2,0],[-1,1]]
         self.lpozic = []
+
+    def chces_tu_stat(self): #kostel se nestěhuje
+        return False
+    def vztyk(self): #kostel se nestěhuje
+        ...
             
- 
-gama = 4
-a = 50
+potencialovy_val = 0.35
+gama = 6
+a = 400
 VYSKA, SIRKA = a,a
-nusedliku = 100
+ndomu = 8000
+smatrani = dic_smatrani[8]  #index podle toho kolik polí kolem sebe chceš šmátrat
 os.makedirs('frames_folder', exist_ok=True)
 
 
 mat = matrix(VYSKA, SIRKA)
-prvni = Kostel(SIRKA//2,VYSKA//2)
+#prvni = Kostel(SIRKA//2,VYSKA//2)
+#prvni.get_lpozic()
+#prvni.sednout()
+#mat[SIRKA//2+1][VYSKA//2] = Cesta(SIRKA//2+1,VYSKA//2)
+
+prvni = Kostel(SIRKA//3,VYSKA//3)
 prvni.get_lpozic()
 prvni.sednout()
-mat[SIRKA//2+1][VYSKA//2] = Cesta(SIRKA//2+1,VYSKA//2)
-maxim = maximum()
-houses = [Dum(random.randint(3,SIRKA-3),random.randint(3,VYSKA-3)) for i in range(nusedliku)]
+mat[SIRKA//3+1][VYSKA//3] = Cesta(SIRKA//3+1,VYSKA//3)
+
+pprvni = Kostel(2*SIRKA//3,VYSKA//3)
+pprvni.get_lpozic()
+pprvni.sednout()
+mat[2*SIRKA//3+1][VYSKA//3] = Cesta(2*SIRKA//3+1,VYSKA//3)
+
+ppprvni = Kostel(SIRKA//2,2*VYSKA//3)
+ppprvni.get_lpozic()
+ppprvni.sednout()
+mat[SIRKA//2+1][2*VYSKA//3] = Cesta(SIRKA//2+1,2*VYSKA//3)
+
+max_propabiliti = maximum()
+houses = [Dum(random.randint(5,SIRKA-6),random.randint(5,VYSKA-6)) for i in range(ndomu)]
 t = time.localtime()
 current_time = time.strftime("%H:%M", t)
 nusedliku = 0
@@ -388,60 +595,33 @@ while len(houses)!=0 and infloop<SIRKA*20:
     for house in houses:
         x = house.x
         y = house.y
-        if house.muzu_sednout(maxim):
+        if house.muzu_sednout():
             house.sednout()
             house.zarid_cestu()
             emigranti.append(house)
-            nusedliku +=1
+
             print(nusedliku)
             infloop = 0
-            maxim = propability(SIRKA//2,VYSKA//2+1)
-            #print(len(houses))
-            #mapa = [[obj.farbe for obj in row] for row in mat]
-            #plt.imshow(mapa, cmap="hot")
-            #plt.savefig(f"dla{VYSKA}-{nusedliku}.png")
-            
+            #maxim = max_propabiliti
 
+            if nusedliku % (ndomu//5) == 0:
+                npic = savepic(npic)
 
+            if nusedliku % (ndomu//5) == 0: #zvednutí domů
+                presunuti += stehovani()
+
+            if nusedliku % 20 == 0:
+                npic = savepic(npic)
+
+            nusedliku +=1
         
-        elif random.randint(0,1) == 1:
-            nx = x+random.randrange(-1,2,2)
-            if nx < 3 or nx > SIRKA-4:
-                pass
-            else:
-                house.x = nx                
-        else:
-            ny = y+random.randrange(-1,2,2)
-            if ny < 3 or ny > VYSKA-4:
-                pass
-            else:
-                house.y = ny  
+        else:    
+            house.posun_se() #změní souřadnice domu
+
     for emg in emigranti:
         houses.remove(emg)
 
-    if nusedliku % 50 == 0:
-        mapa = [[obj.farbe for obj in row] for row in mat]
-        plt.imshow(mapa, cmap="hot")
-        plt.savefig(f"frames_folder/frame_{npic}.png", format='PNG', bbox_inches='tight')
-        plt.close()  # Zavřít aktuální figuru, aby neovlivňovala další snímky
-        npic += 1
-
-    if nusedliku % 20 == 0:
-        for row in mat:
-            for cell in row:
-                if cell.id == 2:
-                    if cell.chces_tu_stat(maxim):
-                        houses = cell.vztyk(houses)
-                        b,cesty = jekolem(cell.x,cell.y,1)
-                        if b:
-                            for cesta in cesty:
-                                if cesta.zaorame():
-                                    cesta.zaorat()
-                        #změnit housovi souradnice
-                        presunuti+=1
-
-
-
+    
 
 
 
@@ -455,7 +635,7 @@ print("přesunuto:",presunuti)
 
 
 obrazky = [imageio.v2.imread(f"frames_folder/frame_{i}.png") for i in range(npic)]
-imageio.mimsave(f"snímky/gify/animation{nusedliku}.gif",obrazky, duration=1, repeat=5)
+imageio.mimsave(f"snímky/gify/animation_nused{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}.gif",obrazky,loop = 100, duration = 200)
 
 # Smazání složky se snímky
 for file_path in os.listdir('frames_folder'):
@@ -463,8 +643,9 @@ for file_path in os.listdir('frames_folder'):
 os.rmdir('frames_folder')
 
 
-#mapa = [[obj.farbe for obj in row] for row in mat]
+mapa = [[obj.farbe for obj in row] for row in mat]
 
-#plt.imshow(mapa, cmap="hot")
-#plt.savefig(f"dla{VYSKA}-{nusedliku}.png")
-#plt.show()
+plt.imshow(mapa, cmap="hot")
+plt.savefig(f"{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}.png", dpi = 600)
+#img = Image.fromarray(np.uint8(barevna_matice))
+plt.show()
