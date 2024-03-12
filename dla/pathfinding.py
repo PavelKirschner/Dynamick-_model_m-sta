@@ -6,6 +6,19 @@ from math import sqrt
 
 dokola = [[0,1],[1,0],[0,-1],[-1,0]]
 signum = [[1,1],[1,-1],[-1,1],[-1,-1]]
+dic = {
+    10:58,
+    9:48,
+    8:39,
+    7:30,
+    6:23,
+    5:17,
+    4:11,
+    3:7,
+    2:4,
+    1:2
+
+}
 
 def dis_to_nearest(fromx,fromy,value):
     d1 = 1
@@ -13,11 +26,11 @@ def dis_to_nearest(fromx,fromy,value):
     print(fromx,fromy)
     l = []
     ll = []
-    for i in range(58):
+    for i in range(14):
         print("dčka",d1,d2)
-        for i in signum:
-            x = fromx + d1*i[0]
-            y = fromy + d2*i[1]
+        for s1,s2 in signum:
+            x = fromx + d1*s1
+            y = fromy + d2*s2
             l.append(x)
             ll.append(y)
             if 0<x<SIRKA and 0<y<VYSKA and mat[x][y].value == value:
@@ -25,8 +38,8 @@ def dis_to_nearest(fromx,fromy,value):
                 print("final answer",x,y)
                 return distance
             
-            x = fromx + d2*i[0]
-            y = fromy + d1*i[1]
+            x = fromx + d2*s1
+            y = fromy + d1*s2
             l.append(x)
             ll.append(y)
             if 0<x<SIRKA and 0<y<VYSKA and mat[x][y].value == value:
@@ -39,10 +52,10 @@ def dis_to_nearest(fromx,fromy,value):
             d2 = 0
         else:
             d2 += 1
-    print(l)
-    print(ll)
-    plt.scatter(l,ll)
-    plt.show()
+
+        plt.scatter(l,ll, s = 1000)
+        plt.savefig(f"{i}")
+        plt.close()
 
 class POLE:
     def __init__(self, x,y):
@@ -167,6 +180,3 @@ houses = [Dum(random.randint(1,SIRKA-2),random.randint(1,VYSKA-2)) for i in rang
 
 mapa = [[obj.farbe for obj in row] for row in mat]
 
-plt.imshow(mapa, cmap="hot")
-#plt.savefig(f"dla{VYSKA}-{nusedliku}.png")
-plt.show()
