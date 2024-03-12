@@ -7,16 +7,22 @@ import os
 import imageio
 from PIL import Image
 
+#*------*-----*----*---*--*-*CO MŮŽU ZLEPŠIT*-*--*---*----*-----*------*
 # urovnat kód
-#přidat speciální budovy
+# přidat speciální budovy, aby se tvořili v místech hustého osidlení
 # 3D model
-# udělat dic pro smatrani, abychom psali pouze poloměr
+# není nic jako nic, přidat k NIC různé value, které by třeba násobili pravděpodobnost usednutí. Les...pravd*0,4 VOda...pravd*0.001   louka...pravd*0.96   svah...pravd*0.89   kopec...pravd*0.80  uvody...pravd*1.2
 
 dokola = [[0,1],[1,0],[0,-1],[-1,0]]
 pic = 0
 signum = [[1,1],[1,-1],[-1,1],[-1,-1]]
 rposun = (1,-1)
 dic_smatrani = {
+    15:127,
+    14:113,
+    13:97,
+    12:84,
+    11:70,
     10:58,
     9:48,
     8:39,
@@ -71,19 +77,17 @@ def dis_to_nearest(fromx,fromy,id):
     d1 = 1
     d2 = 0
     while True:
-        for i in signum:
-            x = fromx + d1*i[0]
-            y = fromy + d2*i[1]
+        for s1,s2 in signum:
+            x = fromx + d1*s1
+            y = fromy + d2*s2
 
             if 0<x<SIRKA and 0<y<VYSKA and mat[x][y].id == id:
-                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                return distance
+                return distance(fromx,fromy,x,y)
             
-            x = fromx + d2*i[0]
-            y = fromy + d1*i[1]
+            x = fromx + d2*s1
+            y = fromy + d1*s2
             if 0<x<SIRKA and 0<y<VYSKA and mat[x][y].id == id:
-                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                return distance
+                return distance(fromx,fromy,x,y)
 
         if d1 == d2:
             d1 += 1
@@ -130,16 +134,16 @@ def propability(fromx,fromy,smatrani):
             y = fromy + d2*i[1]
 
             if 0<x<SIRKA and 0<y<VYSKA:
-                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                citatel += mat[x][y].value*(distance**(-gama))
-                jmenovatel += distance**(-gama)
+                dist = distance(fromx,fromy,x,y)
+                citatel += mat[x][y].value*(dist**(-gama))
+                jmenovatel += dist**(-gama)
                 
             x = fromx + d2*i[0]
             y = fromy + d1*i[1]
             if 0<x<SIRKA and 0<y<VYSKA:
-                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                citatel += mat[x][y].value*(distance**(-gama))
-                jmenovatel += distance**(-gama)
+                dist = distance(fromx,fromy,x,y)
+                citatel += mat[x][y].value*(dist**(-gama))
+                jmenovatel += dist**(-gama)
                 
         if d1 == d2:
             d1 += 1
@@ -161,16 +165,16 @@ def maximum():
             y = fromy + d2*i[1]
 
             if 0<x<SIRKA and 0<y<VYSKA:
-                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                citatel += 3*(distance**(-gama))
-                jmenovatel += distance**(-gama)
+                dist = distance(fromx,fromy,x,y)
+                citatel += 3*(dist**(-gama))
+                jmenovatel += dist**(-gama)
                 
             x = fromx + d2*i[0]
             y = fromy + d1*i[1]
             if 0<x<SIRKA and 0<y<VYSKA:
-                distance = sqrt(((fromx-(x))**2)+((fromy-(y))**2))
-                citatel += 3*(distance**(-gama))
-                jmenovatel += distance**(-gama)
+                dist = distance(fromx,fromy,x,y)
+                citatel += 3*(dist**(-gama))
+                jmenovatel += dist**(-gama)
                 
         if d1 == d2:
             d1 += 1
@@ -178,6 +182,7 @@ def maximum():
         else:
             d2 += 1
     return citatel/jmenovatel
+
 
 class POLE:
     def __init__(self, x,y):
@@ -200,7 +205,6 @@ class Cesta(POLE):
     
     def zaorame(self): 
         """vrátí True jestli cesta je konečná a k ničemu nevede"""
-
         pripoje = 0
         for dx,dy in dokola:
             if mat[self.x+dx][self.y+dy].id > 0:
@@ -226,7 +230,7 @@ class Cesta(POLE):
             if cestykolem == 0:
                 return
             
-    def zaorat2(self):
+    def zaorat2(self): #neúspěšný pokus o spolehlivější odstraňování cest
         x = self.x
         y = self.y
         for dx,dy in dokola:
@@ -381,6 +385,7 @@ class Dum(POLE):
         self.farbe = random.random()*100+100
         self.tvar = random.choice(tvary)
         self.lpozic = []
+        self.posledni_pravdepodobnost = 0
 
     def get_lpozic(self):
         self.lpozic = []
@@ -408,7 +413,7 @@ class Dum(POLE):
         a = propability(self.x,self.y,smatrani)/max_propabiliti
         r = random.random()
 
-        if r < a:
+        if r < a and a > self.posledni_pravdepodobnost:
 
             return True
             
@@ -420,14 +425,17 @@ class Dum(POLE):
             mat[x][y] = self
 
     def zarid_cestu(self):
+        self.get_lpozic()
         kolem = []
-        x = self.x
-        y = self.y
-        for dx,dy in dokola:
-            if 0<x+dx<VYSKA and 0<y+dy<VYSKA and [x+dx,y+dy] not in self.lpozic:
-                kolem.append([x+dx,y+dy])
-                if mat[x+dx][y+dy].id == 1:
-                    return True
+        
+        for x,y in self.lpozic:
+            for dx,dy in dokola:
+                if 0<x+dx<VYSKA and 0<y+dy<VYSKA and [x+dx,y+dy] not in self.lpozic:
+                    if mat[x+dx][y+dy].id == 1:
+                        return True
+                    if [x+dx,y+dy] not in kolem:
+                        kolem.append([x+dx,y+dy])
+                    
         
         trasy = []
         for kolx,koly in kolem:
@@ -457,12 +465,11 @@ class Dum(POLE):
             #global pic
             #plt.savefig(f"domy{pic}.png")
             #pic+=1
-
             #plt.show()
 
-
-            for posun in dokola:
-                if 0<x+posun[0]<VYSKA and 0<y+posun[1]<SIRKA and mat[x+posun[0]][y+posun[1]].id == 1:
+            # 0<x+dx<VYSKA and 0<y+dy<SIRKA
+            for dx,dy in dokola:
+                if mat[x+dx][y+dy].id == 1:
 
                     if len(ta_prava.prvky) > 3:
                         ta_prava.usmernit() 
@@ -472,11 +479,11 @@ class Dum(POLE):
                     return
                 
             trasy = []
-            for posun in dokola:
+            for dx,dy in dokola:
 
-                if 0<x+posun[0]<VYSKA and 0<y+posun[1]<SIRKA and mat[x+posun[0]][y+posun[1]].id == 0 and [x+posun[0],y+posun[1]] not in ta_prava.prvky:
+                if mat[x+dx][y+dy].id == 0 and [x+dx,y+dy] not in ta_prava.prvky:
                     t = copy.deepcopy(ta_prava)
-                    t.pridej_cestu(x+posun[0],y+posun[1])
+                    t.pridej_cestu(x+dx,y+dy)
                     trasy.append(t)
             if len(trasy) == 0:
                 print("bez silnice")
@@ -509,6 +516,7 @@ class Dum(POLE):
             return False #nezvedne se
             
         else:
+            self.posledni_pravdepodobnost = propability_of_staying
             return True #zvedne se
 
     def vztyk(self):
@@ -549,38 +557,43 @@ class Kostel(Dum):
     def vztyk(self): #kostel se nestěhuje
         ...
             
-potencialovy_val = 0.35
-gama = 6
-a = 400
+potencialovy_val = 0.2
+gama = 6.3
+a = 300
 VYSKA, SIRKA = a,a
-ndomu = 8000
-smatrani = dic_smatrani[8]  #index podle toho kolik polí kolem sebe chceš šmátrat
+ndomu = 4000
+poznamka = "stehovanedomymajisvujmaxparametrpoprve"
+smatrani = dic_smatrani[15]  #(0,15)index podle toho kolik polí kolem sebe chceš šmátrat
 os.makedirs('frames_folder', exist_ok=True)
 
 
 mat = matrix(VYSKA, SIRKA)
-#prvni = Kostel(SIRKA//2,VYSKA//2)
-#prvni.get_lpozic()
-#prvni.sednout()
-#mat[SIRKA//2+1][VYSKA//2] = Cesta(SIRKA//2+1,VYSKA//2)
-
-prvni = Kostel(SIRKA//3,VYSKA//3)
+"""prvni = Kostel(SIRKA//2,VYSKA//2)
 prvni.get_lpozic()
 prvni.sednout()
-mat[SIRKA//3+1][VYSKA//3] = Cesta(SIRKA//3+1,VYSKA//3)
+mat[SIRKA//2+1][VYSKA//2] = Cesta(SIRKA//2+1,VYSKA//2)"""
 
-pprvni = Kostel(2*SIRKA//3,VYSKA//3)
+prvni = Kostel(SIRKA//4,VYSKA//2)
+prvni.get_lpozic()
+prvni.sednout()
+mat[SIRKA//4+1][VYSKA//2] = Cesta(SIRKA//4+1,VYSKA//2)
+
+pprvni = Kostel(3*SIRKA//4,VYSKA//2)
 pprvni.get_lpozic()
 pprvni.sednout()
-mat[2*SIRKA//3+1][VYSKA//3] = Cesta(2*SIRKA//3+1,VYSKA//3)
+#mat[3*SIRKA//4+1][VYSKA//2] = Cesta(3*SIRKA//4+1,VYSKA//2)
 
-ppprvni = Kostel(SIRKA//2,2*VYSKA//3)
+"""ppprvni = Kostel(SIRKA//2,2*VYSKA//3)
 ppprvni.get_lpozic()
 ppprvni.sednout()
-mat[SIRKA//2+1][2*VYSKA//3] = Cesta(SIRKA//2+1,2*VYSKA//3)
+mat[SIRKA//2+1][2*VYSKA//3] = Cesta(SIRKA//2+1,2*VYSKA//3)"""
 
 max_propabiliti = maximum()
 houses = [Dum(random.randint(5,SIRKA-6),random.randint(5,VYSKA-6)) for i in range(ndomu)]
+#houses = [Dum(SIRKA//2,VYSKA//2) for i in range(ndomu)]
+
+
+
 t = time.localtime()
 current_time = time.strftime("%H:%M", t)
 nusedliku = 0
@@ -593,13 +606,10 @@ while len(houses)!=0 and infloop<SIRKA*20:
     infloop +=1
     emigranti = []
     for house in houses:
-        x = house.x
-        y = house.y
         if house.muzu_sednout():
             house.sednout()
             house.zarid_cestu()
             emigranti.append(house)
-
             print(nusedliku)
             infloop = 0
             #maxim = max_propabiliti
@@ -635,7 +645,7 @@ print("přesunuto:",presunuti)
 
 
 obrazky = [imageio.v2.imread(f"frames_folder/frame_{i}.png") for i in range(npic)]
-imageio.mimsave(f"snímky/gify/animation_nused{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}.gif",obrazky,loop = 100, duration = 200)
+imageio.mimsave(f"snímky/gify/animation_nused{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}_{poznamka}.gif",obrazky,loop = 100, duration = 200)
 
 # Smazání složky se snímky
 for file_path in os.listdir('frames_folder'):
@@ -646,6 +656,6 @@ os.rmdir('frames_folder')
 mapa = [[obj.farbe for obj in row] for row in mat]
 
 plt.imshow(mapa, cmap="hot")
-plt.savefig(f"{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}.png", dpi = 600)
+plt.savefig(f"{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}_{poznamka}.png", dpi = 600)
 #img = Image.fromarray(np.uint8(barevna_matice))
 plt.show()
