@@ -1,0 +1,2 @@
+DLA snímky jsou pojmenované následujícím způsobem
+dla{délka strany matice}-{počet náhodných chodců}

@@ -66,6 +66,12 @@ tvary = [[[0,0],[1,0]], #carky
          [[0,0],[0,-1],[0,-2]],            
     ]
 
+def get_niterations(poloměr):
+    niterations = poloměr//2
+    for i in range(2,poloměr):
+        niterations += i
+    return niterations
+
 def distance(fromx,fromy,kamx,kamy):
     return sqrt((fromx-kamx)**2 + (fromy - kamy)**2)
 
@@ -129,19 +135,23 @@ def propability(fromx,fromy,smatrani):
     citatel = 0
     jmenovatel = 0
     for i in range(smatrani):
+        prohledano = []
+        x = fromx + d1
+        y = fromy + d2
+        dist = distance(fromx,fromy,x,y)
         for i in signum:
             x = fromx + d1*i[0]
             y = fromy + d2*i[1]
 
-            if 0<x<SIRKA and 0<y<VYSKA:
-                dist = distance(fromx,fromy,x,y)
+            if [x,y] not in prohledano and 0<x<SIRKA and 0<y<VYSKA:
+                prohledano.append([x,y])
                 citatel += mat[x][y].value*(dist**(-gama))
                 jmenovatel += dist**(-gama)
                 
             x = fromx + d2*i[0]
             y = fromy + d1*i[1]
-            if 0<x<SIRKA and 0<y<VYSKA:
-                dist = distance(fromx,fromy,x,y)
+            if [x,y] not in prohledano and 0<x<SIRKA and 0<y<VYSKA:
+                prohledano.append([x,y])
                 citatel += mat[x][y].value*(dist**(-gama))
                 jmenovatel += dist**(-gama)
                 
@@ -199,7 +209,7 @@ class Nic(POLE):
 class Cesta(POLE):
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.value = 1
+        self.value = 0.03
         self.id = 1
         self.farbe = 0
     
@@ -558,41 +568,23 @@ class Kostel(Dum):
         ...
             
 potencialovy_val = 0.2
-gama = 6.3
-a = 300
+gama = 3
+a = 200
 VYSKA, SIRKA = a,a
-ndomu = 4000
-poznamka = "stehovanedomymajisvujmaxparametrpoprve"
-smatrani = dic_smatrani[15]  #(0,15)index podle toho kolik polí kolem sebe chceš šmátrat
+ndomu = 700
+poznamka = "prohledávání_170_poloměr"
+smatrani = get_niterations(20)            #dic_smatrani[15]  #(0,15)index podle toho kolik polí kolem sebe chceš šmátrat
 os.makedirs('frames_folder', exist_ok=True)
 
 
 mat = matrix(VYSKA, SIRKA)
-"""prvni = Kostel(SIRKA//2,VYSKA//2)
+prvni = Kostel(SIRKA//2,VYSKA//2)
 prvni.get_lpozic()
 prvni.sednout()
-mat[SIRKA//2+1][VYSKA//2] = Cesta(SIRKA//2+1,VYSKA//2)"""
-
-prvni = Kostel(SIRKA//4,VYSKA//2)
-prvni.get_lpozic()
-prvni.sednout()
-mat[SIRKA//4+1][VYSKA//2] = Cesta(SIRKA//4+1,VYSKA//2)
-
-pprvni = Kostel(3*SIRKA//4,VYSKA//2)
-pprvni.get_lpozic()
-pprvni.sednout()
-#mat[3*SIRKA//4+1][VYSKA//2] = Cesta(3*SIRKA//4+1,VYSKA//2)
-
-"""ppprvni = Kostel(SIRKA//2,2*VYSKA//3)
-ppprvni.get_lpozic()
-ppprvni.sednout()
-mat[SIRKA//2+1][2*VYSKA//3] = Cesta(SIRKA//2+1,2*VYSKA//3)"""
+mat[SIRKA//2+1][VYSKA//2] = Cesta(SIRKA//2+1,VYSKA//2)
 
 max_propabiliti = maximum()
 houses = [Dum(random.randint(5,SIRKA-6),random.randint(5,VYSKA-6)) for i in range(ndomu)]
-#houses = [Dum(SIRKA//2,VYSKA//2) for i in range(ndomu)]
-
-
 
 t = time.localtime()
 current_time = time.strftime("%H:%M", t)
@@ -657,5 +649,4 @@ mapa = [[obj.farbe for obj in row] for row in mat]
 
 plt.imshow(mapa, cmap="hot")
 plt.savefig(f"{nusedliku}_{SIRKA}x{VYSKA}_presunuti{presunuti}_gamma{gama}_smatrani{smatrani}_potencialovyval{potencialovy_val}_{poznamka}.png", dpi = 600)
-#img = Image.fromarray(np.uint8(barevna_matice))
 plt.show()

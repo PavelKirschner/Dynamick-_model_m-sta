@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import copy
 import time
 
-VYSKA, SIRKA = 200,200
+VYSKA, SIRKA = 20,20
 ncastic = 70
 
 def matrix(VYSKA, SIRKA):
@@ -56,5 +56,4 @@ print("listova hotova:",tcurrent_time)
 
 
 plt.imshow(mat, cmap="gnuplot")
-plt.savefig(f"dlasdfasdfasdfa{VYSKA}-{ncastic}.png", dpi = 600)
 plt.show()
